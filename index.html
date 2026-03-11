@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Procedural Ski Resort</title>
+
+<style>
+body{margin:0;overflow:hidden;font-family:Arial}
+
+#ui{
+position:absolute;
+top:10px;
+left:10px;
+background:white;
+padding:10px;
+border-radius:10px;
+}
+
+#controls{
+position:absolute;
+bottom:10px;
+left:10px;
+background:white;
+padding:10px;
+border-radius:10px;
+}
+
+button{margin:5px}
+</style>
+
+</head>
+
+<body>
+
+<div id="ui">
+Money: $<span id="money">0</span><br>
+Trail: <span id="trail"></span>
+
+<div>
+<b>Injuries</b>
+<div id="injuries"></div>
+</div>
+</div>
+
+<div id="controls">
+<button onclick="generateMountain()">Generate New Mountain</button>
+<button onmousedown="slow=true" onmouseup="slow=false">Slow Down</button>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.158/build/three.min.js"></script>
+
+<script>
+
+let scene=new THREE.Scene()
+
+let camera=new THREE.PerspectiveCamera(
+75,
+window.innerWidth/window.innerHeight,
+0.1,
+5000
+)
+
+let renderer=new THREE.WebGLRenderer({antialias:true})
+renderer.setSize(window.innerWidth,window.innerHeight)
+document.body.appendChild(renderer.domElement)
+
+scene.background=new THREE.Color(0x87ceeb)
+
+/* lighting */
+
+scene.add(new THREE.AmbientLight(0xffffff,.6))
+
+let sun=new THREE.DirectionalLight(0xffffff,1)
+sun.position.set(200,400,200)
+scene.add(sun)
+
+/* sky mountains */
+
+function createBackgroundMountains(){
+
+for(let i=0;i<20;i++){
+
+let m=new THREE.Mesh(
+
+new THREE.ConeGeometry(80+Math.random()*60,200,6),
+
+new THREE.MeshPhongMaterial({color:0x888888})
+
+)
+
+m.position.set(
+(Math.random()-.5)*2000,
+100,
+-1000-Math.random()*1000
+)
+
+scene.add(m)
+
+}
+
+}
+
+createBackgroundMountains()
+
+/* player */
+
+let skier=new THREE.Group()
+
+let body=new THREE.Mesh(
+new THREE.BoxGeometry(1,2,.6),
+new THREE.MeshPhongMaterial({color:0xff0000})
+)
+
+body.position.y=2
+
+let head=new THREE.Mesh(
+new THREE.SphereGeometry(.5),
+new THREE.MeshPhongMaterial({color:0xffe0bd})
+)
+
+head.position.y=3.5
+
+let ski1=new THREE.Mesh(
+new THREE.BoxGeometry(.2,.05,3),
+new THREE.MeshPhongMaterial({color:0x000000})
+)
+
+ski1.position.set(-.3,0,0)
+
+let ski2=ski1.clone()
+ski2.position.x=.3
+
+skier.add(body)
+skier.add(head)
+skier.add(ski1)
+skier.add(ski2)
+
+scene.add(skier)
+
+/* terrain */
+
+let terrain
+let obstacles=[]
+let npcs=[]
+let trails=[]
+
+/* injuries */
+
+let injuries=[]
+let injuryTypes=[
+"sprained legs",
+"sprained arms",
+"broken ribs",
+"concussion",
+"coma",
+"brain bleed",
+"broken arms",
+"broken legs"
+]
+
+function giveInjury(){
+
+let i=injuryTypes[Math.floor(Math.random()*injuryTypes.length)]
+
+if(!injuries.includes(i))injuries.push(i)
+
+document.getElementById("injuries").innerHTML=injuries.join("<br>")
+
+if(i=="coma"||i=="brain bleed"){
+alert("Severe injury! You lost everything")
+money=0
+}
+}
+
+/* trail difficulties */
+
+let trailLevels=[
+{name:"Green Circle",reward:1},
+{name:"Blue Square",reward:2},
+{name:"Black Diamond",reward:10},
+{name:"Double Black",reward:25},
+{name:"Triple Black",reward:50},
+{name:"Skull",reward:100},
+{name:"Double Skull",reward:250},
+{name:"Triple Skull",reward:500}
+]
+
+/* generate terrain */
+
+function generateMountain(){
+
+if(terrain)scene.remove(terrain)
+
+obstacles.forEach(o=>scene.remove(o))
+npcs.forEach(n=>scene.remove(n))
+
+obstacles=[]
+npcs=[]
+trails=[]
+
+terrain=new THREE.Mesh(
+
+new THREE.PlaneGeometry(500,4000,100,200),
+
+new THREE.MeshPhongMaterial({color:0xffffff})
+
+)
+
+terrain.rotation.x=-Math.PI/2
+
+/* terrain bumps */
+
+let verts=terrain.geometry.attributes.position
+
+for(let i=0;i<verts.count;i++){
+
+let y=Math.sin(i/5)*2+Math.random()*3
+
+verts.setY(i,y)
+
+}
+
+verts.needsUpdate=true
+
+scene.add(terrain)
+
+/* generate trails */
+
+for(let i=0;i<8;i++){
+
+let t=trailLevels[i]
+
+let trail={
+difficulty:t,
+x:(Math.random()-.5)*80
+}
+
+trails.push(trail)
+
+}
+
+/* obstacles */
+
+for(let i=0;i<200;i++){
+
+let rock=new THREE.Mesh(
+new THREE.DodecahedronGeometry(1.5),
+new THREE.MeshPhongMaterial({color:0x777777})
+)
+
+rock.position.set(
+(Math.random()-.5)*100,
+1,
+-i*20
+)
+
+scene.add(rock)
+obstacles.push(rock)
+
+}
+
+/* trees */
+
+for(let i=0;i<400;i++){
+
+let trunk=new THREE.Mesh(
+new THREE.CylinderGeometry(.3,.3,3),
+new THREE.MeshPhongMaterial({color:0x8b4513})
+)
+
+let leaves=new THREE.Mesh(
+new THREE.ConeGeometry(2,4),
+new THREE.MeshPhongMaterial({color:0x0a5c2a})
+)
+
+let x=Math.random()<.5?-30:30
+
+trunk.position.set(x,1.5,-i*10)
+leaves.position.set(x,4,-i*10)
+
+scene.add(trunk)
+scene.add(leaves)
+
+obstacles.push(trunk)
+obstacles.push(leaves)
+
+}
+
+/* npc skiers */
+
+for(let i=0;i<20;i++){
+
+let npc=new THREE.Mesh(
+new THREE.BoxGeometry(1,2,1),
+new THREE.MeshPhongMaterial({color:0x0000ff})
+)
+
+npc.position.set(
+(Math.random()-.5)*50,
+1,
+-i*50
+)
+
+scene.add(npc)
+
+npcs.push(npc)
+
+}
+
+skier.position.set(0,0,0)
+
+document.getElementById("trail").innerText=
+trailLevels[Math.floor(Math.random()*trailLevels.length)].name
+
+}
+
+generateMountain()
+
+/* snow particles */
+
+let snow=[]
+
+for(let i=0;i<600;i++){
+
+let s=new THREE.Mesh(
+new THREE.SphereGeometry(.05),
+new THREE.MeshBasicMaterial({color:0xffffff})
+)
+
+s.position.set(
+(Math.random()-.5)*500,
+Math.random()*200,
+(Math.random()-.5)*500
+)
+
+scene.add(s)
+snow.push(s)
+
+}
+
+/* controls */
+
+let keys={}
+let slow=false
+let money=0
+let speed=.35
+
+document.addEventListener("keydown",e=>keys[e.key.toLowerCase()]=true)
+document.addEventListener("keyup",e=>keys[e.key.toLowerCase()]=false)
+
+/* camera */
+
+camera.position.set(0,8,14)
+
+/* loop */
+
+function animate(){
+
+requestAnimationFrame(animate)
+
+let move=slow?speed*.4:speed
+
+if(keys["a"])skier.position.x-=.2
+if(keys["d"])skier.position.x+=.2
+
+skier.position.z-=move
+
+camera.position.x=skier.position.x
+camera.position.z=skier.position.z+14
+camera.lookAt(skier.position)
+
+/* npc movement */
+
+npcs.forEach(n=>{
+n.position.z+=.3
+})
+
+/* collisions */
+
+obstacles.forEach(o=>{
+
+if(skier.position.distanceTo(o.position)<2){
+
+giveInjury()
+
+}
+
+})
+
+/* hallucinations */
+
+if(injuries.includes("concussion")||injuries.includes("brain bleed")){
+
+camera.position.x+=Math.sin(Date.now()*0.01)*.2
+
+}
+
+/* snow */
+
+snow.forEach(s=>{
+s.position.y-=.7
+if(s.position.y<0)s.position.y=200
+})
+
+renderer.render(scene,camera)
+
+}
+
+animate()
+
+</script>
+</body>
+</html>
